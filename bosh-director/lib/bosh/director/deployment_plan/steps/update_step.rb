@@ -13,7 +13,6 @@ module Bosh::Director
           @multi_job_updater = multi_job_updater
         end
 
-
         def perform
           begin
             @logger.info('Updating deployment')
@@ -51,7 +50,13 @@ module Bosh::Director
 
         def update_jobs
           @logger.info('Updating jobs')
-          @multi_job_updater.run(
+          @multi_job_updater.update(
+            @base_job,
+            @deployment_plan,
+            @deployment_plan.jobs_starting_on_deploy,
+          )
+
+          @multi_job_updater.post_deploy(
             @base_job,
             @deployment_plan,
             @deployment_plan.jobs_starting_on_deploy,

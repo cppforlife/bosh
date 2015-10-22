@@ -46,6 +46,26 @@ module Bosh::Director
       @logger.info("Finished the rest of the update")
     end
 
+    def post_deploy
+      instances = []
+
+      @job.instances.each do |instance|
+        instances << instance if instance.changed?
+      end
+
+      return if instances.empty?
+
+      event_log_stage = @event_log.begin_stage("Running post deploy job", instances.size, [ @job.name ])
+
+      ThreadPool.new(:max_threads => @job.update.max_in_flight).wrap do |pool|
+        instances.each do |instance|
+          pool.process { run_post_deploy_on_instance(instance, event_log_stage) }
+        end
+      end
+
+      @logger.info("Finished post deploy for #{@job.name}")
+    end
+
     private
 
     def delete_unneeded_instances
@@ -94,6 +114,20 @@ module Bosh::Director
             InstanceUpdater.new(instance, ticker, @job_renderer).update
           rescue Exception => e
             @logger.error("Error updating instance: #{e.inspect}\n#{e.backtrace.join("\n")}")
+            raise
+          end
+        end
+      end
+    end
+
+    def run_post_deploy_on_instance(instance, event_log_stage)
+      desc = "#{@job.name}/#{instance.index}"
+      event_log_stage.advance_and_track(desc) do |ticker|
+        with_thread_name("post_deploy_instance(#{desc})") do
+          begin
+            InstanceUpdater.new(instance, ticker, @job_renderer).post_deploy
+          rescue Exception => e
+            @logger.error("Error running post deploy instance: #{e.inspect}\n#{e.backtrace.join("\n")}")
             raise
           end
         end

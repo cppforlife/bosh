@@ -76,6 +76,10 @@ module Bosh::Director
 
       steps << proc { wait_until_running }
 
+      if need_start?
+        steps << proc { post_start }
+      end
+
       steps
     end
 
@@ -95,6 +99,16 @@ module Bosh::Director
 
       if @target_state == "stopped" && current_state["job_state"] == "running"
         raise AgentJobNotStopped, "`#{@instance}' is still running despite the stop command"
+      end
+    end
+
+    def post_start
+      @agent.run_script("post-start", {})
+    end
+
+    def post_deploy
+      if @target_state == "started"
+        @agent.run_script("post-deploy", {})
       end
     end
 
