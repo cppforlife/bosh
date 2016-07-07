@@ -9,5 +9,7 @@ image_resource:
 inputs:
 - name: bosh-src
 - name: stemcell-version
+outputs:
+- name: out
 run:
   path: bosh-src/ci/pipelines/stemcells/tasks/build-stemcell.sh
